@@ -17,8 +17,8 @@ spec:
       imagePullSecrets:
         - name: registry-pull-secret
       
-      # 1. INIT-КОНТЕЙНЕР: Копирует код в общую папку
       initContainers:
+        # 1. Копирует код в общую папку
         - name: install-code
           image: registry.goodwin.website/water-delivery-backend
           command: ["sh", "-c", "cp -rp /var/www/html/. /shared-app/"]
@@ -28,9 +28,21 @@ spec:
           resources:
             limits: { cpu: "200m", memory: "256Mi" }
             requests: { cpu: "100m", memory: "128Mi" }
+        # 2. Контейнер для генерации кэша Laravel
+        - name: php-config-builder
+          image: registry.goodwin.website/water-delivery-backend:latest
+          envFrom:
+            - secretRef:
+                name: voda-laravel-app-secrets
+          command: ["sh", "-c", "cd /var/www/html && php artisan config:cache && php artisan route:cache && php artisan view:cache"]
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+          resources:
+            limits: { cpu: "200m", memory: "256Mi" }
 
       containers:
-        # 2. КОНТЕЙНЕР PHP-FPM
+        # 3. КОНТЕЙНЕР PHP-FPM
         - name: php-fpm
           image: registry.goodwin.website/water-delivery-backend
           envFrom:
@@ -40,7 +52,7 @@ spec:
             - containerPort: 9000
           volumeMounts:
             - name: app-code
-              mountPath: /var/www/html
+              mountPath: /var/www/html # Тут и код, и уже готовый кэш
           resources:
             limits: { cpu: "500m", memory: "512Mi" }
             requests: { cpu: "200m", memory: "256Mi" }
@@ -49,7 +61,7 @@ spec:
               command: ["cgi-fcgi", "-bind", "-connect", "127.0.0.1:9000"]
             initialDelaySeconds: 5
 
-        # 3. КОНТЕЙНЕР NGINX (Sidecar)
+        # 4. КОНТЕЙНЕР NGINX (Sidecar)
         - name: nginx
           image: nginx:alpine
           ports:

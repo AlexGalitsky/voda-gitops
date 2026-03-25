@@ -1,0 +1,72 @@
+# k8s/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voda-monster-backend
+  namespace: work-projects-voda-monster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voda-monster-backend
+  template:
+    metadata:
+      labels:
+        app: voda-monster-backend
+    spec:
+      imagePullSecrets:
+        - name: registry-pull-secret
+      
+      # 1. INIT-КОНТЕЙНЕР: Копирует код в общую папку
+      initContainers:
+        - name: install-code
+          image: registry.goodwin.website/water-delivery-backend
+          command: ["sh", "-c", "cp -rp /var/www/html/. /shared-app/"]
+          volumeMounts:
+            - name: app-code
+              mountPath: /shared-app
+          resources:
+            limits: { cpu: "200m", memory: "256Mi" }
+            requests: { cpu: "100m", memory: "128Mi" }
+
+      containers:
+        # 2. КОНТЕЙНЕР PHP-FPM
+        - name: php-fpm
+          image: registry.goodwin.website/water-delivery-backend
+          envFrom:
+            - secretRef:
+                name: voda-laravel-app-secrets
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+          resources:
+            limits: { cpu: "500m", memory: "512Mi" }
+            requests: { cpu: "200m", memory: "256Mi" }
+          readinessProbe:
+            exec:
+              command: ["cgi-fcgi", "-bind", "-connect", "127.0.0.1:9000"]
+            initialDelaySeconds: 5
+
+        # 3. КОНТЕЙНЕР NGINX (Sidecar)
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+            - name: app-code
+              mountPath: /var/www/html
+          resources:
+            limits: { cpu: "200m", memory: "128Mi" }
+            requests: { cpu: "100m", memory: "64Mi" }
+      
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: nginx-config
+        - name: app-code
+          emptyDir: {}

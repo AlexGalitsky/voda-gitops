@@ -1,0 +1,25 @@
+# k8s/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: voda-monster-backend-ingress
+  namespace: work-projects-voda-monster
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - voda-monster-backend.work-projects.goodwin.website
+    secretName: voda-monster-backend-tls-secret
+  rules:
+  - host: voda-monster-backend.work-projects.goodwin.website
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: voda-monster-backend
+            port:
+              number: 80

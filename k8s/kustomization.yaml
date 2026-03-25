@@ -1,0 +1,14 @@
+# k8s/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - external-secret.yaml
+  - nginx-config.yaml
+  - backend-deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+images:
+  - name: registry.goodwin.website/water-delivery-backend
+    newTag: "latest"

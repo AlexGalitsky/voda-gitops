@@ -20,6 +20,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: voda-monster-backend
+            name: voda-monster-backend-svc
             port:
               number: 80
